@@ -7,7 +7,7 @@ import { PrismaClient } from 'generated/prisma/client';
 export class PrismaService extends PrismaClient {
   constructor(private configService: ConfigService) {
     const adapter = new PrismaPg({
-      connectionString: configService.getOrThrow<string>('DATABASE_URL'),
+      connectionString: configService.get('DATABASE_URL'),
     });
     super({ adapter });
   }
