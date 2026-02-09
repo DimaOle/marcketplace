@@ -28,4 +28,4 @@ yarn-error.log*
 *.sublime-workspace
 
 # Prisma (генерируемый клиент не всегда нужно пушить)
-/generated/prisma
+**/generated/prisma
