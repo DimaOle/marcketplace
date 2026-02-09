@@ -7,7 +7,13 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3002;
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
   app.useGlobalFilters(new PrismaClientExceptionFilter());
   await app.listen(PORT);
   console.log(`Server working in PORT - ${PORT}`);
