@@ -7,7 +7,12 @@ export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
-  getAll(@Body() dto: SaveCategoryDTO) {
+  save(@Body() dto: SaveCategoryDTO) {
     return this.categoryService.saveCategory(dto);
+  }
+
+  @Get()
+  get() {
+    return this.categoryService.getCategory();
   }
 }
