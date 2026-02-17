@@ -5,6 +5,7 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { NotFoundException } from '@nestjs/common';
 import { PrismaClient } from 'src/generated/prisma/client';
 import { ProductSelect } from './select-prisma';
+import { PAGINATION_DEFAULTS } from 'src/common/constatnts';
 
 describe('ProductService', () => {
   let service: ProductService;
@@ -79,8 +80,12 @@ describe('ProductService', () => {
   });
 
   describe('getAllProduct', () => {
-    it('should return an array of products', async () => {
-      const mockProducts = [
+    it('should return an array of products with defalut pagination if dto is empty', async () => {
+      const dto = {
+        page: PAGINATION_DEFAULTS.PAGE,
+        limit: PAGINATION_DEFAULTS.LIMIT,
+      };
+      const mockResponse = [
         {
           title: 'washing machine',
           description: `Whirlpool WRBSB 6228 B UA`,
@@ -94,26 +99,62 @@ describe('ProductService', () => {
             slug: 'electronics',
           },
         },
-        {
-          title: 'washing machine',
-          description: `Whirlpool WRBSB 6228 B UA`,
-          price: '13999',
-          stock: 50,
-          images: ['https://link15.com', 'https://link13.com'],
-          categoryId: '923acef2-3107-43a5-8741-d64905a72131',
-          category: {
-            id: '923acef2-3107-43a5-8741-d64905a72131',
-            name: 'electronics',
-            slug: 'electronics',
-          },
-        },
       ];
-      prismaMock.product.findMany.mockResolvedValue(mockProducts as any);
+      prismaMock.product.findMany.mockResolvedValue(mockResponse as any);
+      const result = await service.getAllProduct(dto);
 
-      const result = await service.getAllProduct();
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith({
+        take: 5,
+        skip: 0,
+        where: {},
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: ProductSelect,
+      });
+      expect(result).toEqual(mockResponse);
+      expect(result).toHaveLength(1);
+    });
+    it('should correctly form the AND filter when searching and price', async () => {
+      const dto = {
+        search: 'iphone',
+        minPrice: 100,
+        page: 1,
+        limit: 10,
+      } as any;
 
-      expect(result).toEqual(mockProducts);
-      expect(result.length).toBe(2);
+      await service.getAllProduct(dto);
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith({
+        where: {
+          AND: [
+            { title: { contains: 'iphone', mode: 'insensitive' } },
+            { price: { gte: 100 } },
+          ],
+        },
+        take: 10,
+        skip: 0,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: ProductSelect,
+      });
+    });
+    it('should correctly calculate the skip for the second page', async () => {
+      const dto = {
+        page: 2,
+        limit: 5,
+      };
+
+      await service.getAllProduct(dto);
+      expect(prismaMock.product.findMany).toHaveBeenCalledWith({
+        where: {},
+        take: 5,
+        skip: 5,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: ProductSelect,
+      });
     });
   });
 });
