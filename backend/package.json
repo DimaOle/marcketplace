@@ -23,6 +23,7 @@
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^10.0.0",
+    "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^10.0.0",
     "@prisma/adapter-better-sqlite3": "^7.3.0",
     "@prisma/adapter-pg": "^7.3.0",
@@ -78,8 +79,7 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
-    "^src/(.*)$": "<rootDir>/$1"
-  }
-
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }
