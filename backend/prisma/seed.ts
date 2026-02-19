@@ -10,39 +10,39 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  // const electronics = await prisma.category.upsert({
-  //   where: { name: 'electronics' },
-  //   update: {},
-  //   create: {
-  //     name: 'electronics',
-  //     slug: 'electronics',
-  //     products: {
-  //       create: [
-  //         {
-  //           title: 'Samsung QLED 43',
-  //           description: 'QE43Q7FAAUXUA',
-  //           price: '16999',
-  //           stock: 10,
-  //           images: ['https://link1.com', 'https://link2.com'],
-  //         },
-  //         {
-  //           title: 'Lenovo IdeaPad Slim 3',
-  //           description: `6ARP10 (83K8005FRA) Luna Grey / 16" IPS WUXGA / AMD Ryzen 5 7535HS / RAM 24 GB / SSD 512 GB`,
-  //           price: '23999',
-  //           stock: 20,
-  //           images: ['https://link3.com', 'https://link4.com'],
-  //         },
-  //         {
-  //           title: 'Samsung Galaxy Flip 7',
-  //           description: `12/512GB Jet Black (SM-F766BZKHSEK)`,
-  //           price: '23999',
-  //           stock: 100,
-  //           images: ['https://link5.com', 'https://link6.com'],
-  //         },
-  //       ],
-  //     },
-  //   },
-  // });
+  const electronics = await prisma.category.upsert({
+    where: { name: 'electronics' },
+    update: {},
+    create: {
+      name: 'electronics',
+      slug: 'electronics',
+      products: {
+        create: [
+          {
+            title: 'Samsung QLED 43',
+            description: 'QE43Q7FAAUXUA',
+            price: '16999',
+            stock: 10,
+            images: ['https://link1.com', 'https://link2.com'],
+          },
+          {
+            title: 'Lenovo IdeaPad Slim 3',
+            description: `6ARP10 (83K8005FRA) Luna Grey / 16" IPS WUXGA / AMD Ryzen 5 7535HS / RAM 24 GB / SSD 512 GB`,
+            price: '23999',
+            stock: 20,
+            images: ['https://link3.com', 'https://link4.com'],
+          },
+          {
+            title: 'Samsung Galaxy Flip 7',
+            description: `12/512GB Jet Black (SM-F766BZKHSEK)`,
+            price: '23999',
+            stock: 100,
+            images: ['https://link5.com', 'https://link6.com'],
+          },
+        ],
+      },
+    },
+  });
 
   const sports = await prisma.category.upsert({
     where: { name: 'sports' },
