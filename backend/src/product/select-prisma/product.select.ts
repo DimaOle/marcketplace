@@ -1,7 +1,7 @@
 import { Prisma } from 'src/generated/prisma/client';
 import { CategorySelect } from 'src/сategory/select-prisma';
 
-export const ProductSelect: Prisma.ProductSelect = {
+export const ProductSelect = {
   id: true,
   title: true,
   description: true,
@@ -12,7 +12,7 @@ export const ProductSelect: Prisma.ProductSelect = {
   category: {
     select: CategorySelect,
   },
-};
+} as const;
 
 export type ProductResponse = Prisma.ProductGetPayload<{
   select: typeof ProductSelect;

@@ -3,7 +3,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProductDTO, SearchProductDTO } from './dto';
 import { ProductResponse, ProductSelect } from './select-prisma';
 import { Prisma } from 'src/generated/prisma/client';
-import { ProductWhereInput } from 'src/generated/prisma/models';
 
 @Injectable()
 export class ProductService {

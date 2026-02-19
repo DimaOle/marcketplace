@@ -1,11 +1,9 @@
-import { Prisma } from 'src/generated/prisma/client';
+import { Category } from 'src/generated/prisma/client';
 
-export const CategorySelect: Prisma.CategorySelect = {
+export const CategorySelect = {
   id: true,
   name: true,
   slug: true,
-};
+} as const;
 
-export type CategoryResponse = Prisma.CategoryGetPayload<{
-  select: typeof CategorySelect;
-}>;
+export type CategoryResponse = Pick<Category, keyof typeof CategorySelect>;
