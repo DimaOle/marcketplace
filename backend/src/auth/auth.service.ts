@@ -10,12 +10,23 @@ import {
   UserResponseWithAccesToken,
   userSelect,
 } from 'src/common/prisma-select';
+import { CookieService } from './cookie.service';
+import { Response } from 'express';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private cookieService: CookieService,
+  ) {}
 
-  async register(dto: RegisterDTO): Promise<UserResponseWithAccesToken> {
+  async register(
+    dto: RegisterDTO,
+    userAgent,
+    ip,
+    resp,
+  ): Promise<UserResponseWithAccesToken> {
     const user = await this.prisma.user.findFirst({
       where: { email: dto.email },
     });
@@ -38,10 +49,25 @@ export class AuthService {
     const { id, email, role } = createUser;
 
     const token = await this.createAccessJwtToken(id, email, role);
+    const refresh = await this.createRefreshJwtToken(id);
+    await this.prisma.token.create({
+      data: {
+        refreToken: refresh.refreshToken,
+        userAgent,
+        ip,
+        userId: id,
+      },
+    });
+    this.cookieService.setRefreshToken(resp, refresh.refreshToken);
     return { ...createUser, ...token };
   }
 
-  async logIn(dto: LogInDTO): Promise<UserResponseWithAccesToken> {
+  async logIn(
+    dto: LogInDTO,
+    resp: Response,
+    ip,
+    userAgent,
+  ): Promise<UserResponseWithAccesToken> {
     const user = await this.prisma.user.findFirst({
       where: { email: dto.email },
       select: userAuthSelect,
@@ -57,8 +83,22 @@ export class AuthService {
     }
 
     const jwt = await this.createAccessJwtToken(user.id, user.email, user.role);
+    const refresh = await this.createRefreshJwtToken(user.id);
+    await this.prisma.token.create({
+      data: {
+        refreToken: refresh.refreshToken,
+        userAgent,
+        ip,
+        userId: user.id,
+      },
+    });
+    this.cookieService.setRefreshToken(resp, refresh.refreshToken);
     const { password, ...userWithoutPassword } = user;
     return { ...userWithoutPassword, ...jwt };
+  }
+
+  async logOut(userId, refreshToken) {
+    return true;
   }
 
   private async createAccessJwtToken(
