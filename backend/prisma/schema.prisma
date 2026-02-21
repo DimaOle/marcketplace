@@ -69,7 +69,7 @@ model Token {
   userId      String @map("user_id")
 
   createdAt DateTime @default(now()) @map("created_at")
-  @@map("Tokens")
+  @@map("tokens")
 }
 
 enum Role {
