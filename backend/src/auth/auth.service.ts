@@ -3,6 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LogInDTO, RegisterDTO } from './dto';
 import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+
 import {
   userAuthSelect,
   UserResponseWithAccesToken,
@@ -35,7 +37,7 @@ export class AuthService {
     });
     const { id, email, role } = createUser;
 
-    const token = await this.createJwtToken(id, email, role);
+    const token = await this.createAccessJwtToken(id, email, role);
     return { ...createUser, ...token };
   }
 
@@ -54,17 +56,25 @@ export class AuthService {
       throw new UnauthorizedException('incorecty password or email');
     }
 
-    const jwt = await this.createJwtToken(user.id, user.email, user.role);
+    const jwt = await this.createAccessJwtToken(user.id, user.email, user.role);
     const { password, ...userWithoutPassword } = user;
     return { ...userWithoutPassword, ...jwt };
   }
 
-  private async createJwtToken(
+  private async createAccessJwtToken(
     id: string,
     email: string,
     role: string,
   ): Promise<{ accessToken: string }> {
     const payload = { userId: id, email, role };
     return { accessToken: await this.jwt.signAsync(payload) };
+  }
+
+  private async createRefreshJwtToken(
+    userId: string,
+  ): Promise<{ refreshToken: string }> {
+    const v4 = uuidv4();
+    const payload = { sid: v4, userId: userId };
+    return { refreshToken: await this.jwt.signAsync(payload) };
   }
 }

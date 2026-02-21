@@ -60,7 +60,7 @@ model User {
 }
 
 model Token {
-  id          String   @id @default(uuid())
+  id          String   @id @default(uuid()) @unique()
   refreToken  String @map("refresh_token")
   userAgent   String @map("user_agent")
   ip          String
@@ -69,6 +69,7 @@ model Token {
   userId      String @map("user_id")
 
   createdAt DateTime @default(now()) @map("created_at")
+  @@map("Tokens")
 }
 
 enum Role {
