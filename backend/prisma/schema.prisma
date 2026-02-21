@@ -45,17 +45,30 @@ model Product {
 }
 
 model User {
-  id String @id @default(uuid())
+  id String  @id @default(uuid())
   firstName String
   lastName String
   email String @unique()
   password String
   role Role @default(USER)
+  token Token[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt() @map("updated_at")
 
   @@map("users")
+}
+
+model Token {
+  id          String   @id @default(uuid())
+  refreToken  String @map("refresh_token")
+  userAgent   String @map("user_agent")
+  ip          String
+
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
 }
 
 enum Role {

@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
@@ -14,16 +15,15 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
     if (!token) {
-      throw new ForbiddenException('no acces token');
+      throw new UnauthorizedException('no acces token');
     }
-
     try {
       const payload = await this.jwt.verifyAsync(token);
       request['user'] = payload;
 
       return true;
     } catch (e) {
-      throw new ForbiddenException('invalid token');
+      throw new UnauthorizedException('invalid token');
     }
   }
 

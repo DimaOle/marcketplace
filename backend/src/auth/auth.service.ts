@@ -5,7 +5,6 @@ import { LogInDTO, RegisterDTO } from './dto';
 import * as bcrypt from 'bcrypt';
 import {
   userAuthSelect,
-  UserResponse,
   UserResponseWithAccesToken,
   userSelect,
 } from 'src/common/prisma-select';
