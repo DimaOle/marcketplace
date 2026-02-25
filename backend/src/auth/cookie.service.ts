@@ -22,7 +22,10 @@ export class CookieService {
   }
 
   cleanRefreshToken(resp: Response) {
-    resp.cookie('refreshToken', {
+    resp.cookie('refreshToken', '', {
+      httpOnly: true,
+      secure: this.prod,
+      sameSite: 'lax',
       maxAge: 0,
     });
   }
