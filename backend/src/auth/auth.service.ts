@@ -86,6 +86,7 @@ export class AuthService {
     const jwt = await this.createAccessJwtToken(user.id, user.email, user.role);
     const refresh = await this.createRefreshJwtToken(user.id);
     const hashToken = await bcrypt.hash(refresh.refreshToken, 10);
+    await this.clearSession(user.id);
     await this.prisma.token.create({
       data: {
         refreshToken: hashToken,
@@ -145,5 +146,18 @@ export class AuthService {
     const v4 = uuidv4();
     const payload = { sid: v4, userId: userId };
     return { refreshToken: await this.jwt.signAsync(payload) };
+  }
+
+  private async clearSession(userId: string, limit = 5) {
+    const oldSession = await this.prisma.token.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip: limit - 1,
+      select: { id: true },
+    });
+    if (oldSession.length > 0) {
+      const arrSession = oldSession.map((el) => el.id);
+      await this.prisma.token.deleteMany({ where: { id: { in: arrSession } } });
+    }
   }
 }
