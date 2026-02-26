@@ -50,9 +50,10 @@ export class AuthService {
 
     const token = await this.createAccessJwtToken(id, email, role);
     const refresh = await this.createRefreshJwtToken(id);
+    const hashToken = await bcrypt.hash(refresh.refreshToken, 10);
     await this.prisma.token.create({
       data: {
-        refreshToken: refresh.refreshToken,
+        refreshToken: hashToken,
         userAgent,
         ip,
         userId: id,
@@ -98,16 +99,33 @@ export class AuthService {
     return { ...userWithoutPassword, ...jwt };
   }
 
-  async logOut(refreshToken: string, resp: Response) {
-    if (!refreshToken) {
+  async logOut(userId: string, token, resp: Response) {
+    if (!token) {
       throw new UnauthorizedException('Refresh token not found');
     }
-    await this.prisma.token.deleteMany({
+    const userTokens = await this.prisma.token.findMany({
       where: {
-        refreshToken:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaWQiOiIyYzM3MTk1My04MzliLTRkZWQtODQwMi1hMzhkNTRjZmU2NTIiLCJ1c2VySWQiOiJjMDE1NjBmNC0wNTJlLTRiNjEtODQ4ZC1kYzkwZGI3NTNlMWMiLCJpYXQiOjE3NzIwNDgzNTMsImV4cCI6MTc3MjA0ODk1M30.iK_a8dne6d7BGb-yKfFxJ9JnQgsSruiPBm384Qo9pAI',
+        userId,
       },
     });
+
+    if (userTokens.length == 0) {
+      return { success: true };
+    }
+
+    for (let i = 0; i < userTokens.length; i++) {
+      const validToken = await bcrypt.compare(
+        token,
+        userTokens[i].refreshToken,
+      );
+      console.log(validToken);
+      if (validToken) {
+        await this.prisma.token.deleteMany({ where: { id: userTokens[i].id } });
+        this.cookieService.cleanRefreshToken(resp);
+        return { success: true };
+      }
+    }
+    await this.prisma.token.deleteMany({ where: { userId } });
     this.cookieService.cleanRefreshToken(resp);
     return { success: true };
   }

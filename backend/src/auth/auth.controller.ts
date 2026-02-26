@@ -41,18 +41,13 @@ export class AuthController {
     return this.authService.logIn(dto, resp, ip, userAgent);
   }
 
-  // @Patch('refreshToken')
-  // @UseGuards(RefreshTokenJwt)
-  // refreshToken(@DataFromUser() ) {
-
-  // }
-
   @Delete('logOut')
   @UseGuards(AuthGuard)
   logOut(
-    @CookieFromReq('refreshToken') refreshToken: string,
+    @DataFromUser('userId') userId: string,
+    @CookieFromReq('refreshToken') token: string,
     @Res({ passthrough: true }) resp: Response,
   ) {
-    return this.authService.logOut(refreshToken, resp);
+    return this.authService.logOut(userId, token, resp);
   }
 }

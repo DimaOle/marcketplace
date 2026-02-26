@@ -6,7 +6,6 @@ export const CookieFromReq = createParamDecorator(
     if (!req.cookies) {
       return {};
     }
-    console.log(req.cookies);
     return data ? req.cookies[data] : req.cookies;
   },
 );
