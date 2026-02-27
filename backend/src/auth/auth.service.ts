@@ -99,6 +99,34 @@ export class AuthService {
     const { password, ...userWithoutPassword } = user;
     return { ...userWithoutPassword, ...jwt };
   }
+  async getRefreshToken(
+    sid: string,
+    refreshToken: string,
+    resp: Response,
+  ): Promise<{ accessToken: string }> {
+    const session = await this.prisma.token.findMany({ where: { id: sid } });
+    if (session.length == 0) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    for (let i = 0; i < session.length; i++) {
+      const match = await bcrypt.compare(refreshToken, session[i].refreshToken);
+
+      if (match) {
+        const token = await this.createRefreshJwtToken(session[i].userId);
+        await this.prisma.token.update({
+          where: { id: sid },
+          data: { refreshToken: token.refreshToken },
+        });
+        this.cookieService.setRefreshToken(resp, token.refreshToken);
+        return { accessToken: token.refreshToken };
+      }
+    }
+
+    await this.prisma.token.deleteMany({
+      where: { userId: session[0].userId },
+    });
+  }
 
   async logOut(userId: string, token, resp: Response) {
     if (!token) {
@@ -119,7 +147,6 @@ export class AuthService {
         token,
         userTokens[i].refreshToken,
       );
-      console.log(validToken);
       if (validToken) {
         await this.prisma.token.deleteMany({ where: { id: userTokens[i].id } });
         this.cookieService.cleanRefreshToken(resp);

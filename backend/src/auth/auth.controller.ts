@@ -41,6 +41,13 @@ export class AuthController {
     return this.authService.logIn(dto, resp, ip, userAgent);
   }
 
+  @Patch('refreshToken')
+  @UseGuards(RefreshTokenJwt)
+  refreshToken(
+    @DataFromUser('sid') sid: string,
+    @Res({ passthrough: true }) resp: Response,
+  ) {}
+
   @Delete('logOut')
   @UseGuards(AuthGuard)
   logOut(
