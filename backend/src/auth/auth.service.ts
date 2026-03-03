@@ -3,7 +3,6 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LogInDTO, RegisterDTO } from './dto';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
 
 import {
   userAuthSelect,
@@ -12,6 +11,9 @@ import {
 } from 'src/common/prisma-select';
 import { CookieService } from './cookie.service';
 import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
+import { TokenService } from './token.service';
+import { payloadOfSession } from './interfaces';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,8 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private cookieService: CookieService,
+    private config: ConfigService,
+    private tokenService: TokenService,
   ) {}
 
   async register(
@@ -48,19 +52,16 @@ export class AuthService {
     });
     const { id, email, role } = createUser;
 
-    const token = await this.createAccessJwtToken(id, email, role);
-    const refresh = await this.createRefreshJwtToken(id);
-    const hashToken = await bcrypt.hash(refresh.refreshToken, 10);
-    await this.prisma.token.create({
-      data: {
-        refreshToken: hashToken,
-        userAgent,
-        ip,
-        userId: id,
-      },
+    const token = await this.tokenService.createTokensAuth({
+      type: 'register',
+      id: id,
+      email: email,
+      role: role,
+      userAgent: userAgent,
+      ip: ip,
     });
-    this.cookieService.setRefreshToken(resp, refresh.refreshToken);
-    return { ...createUser, ...token };
+    this.cookieService.setRefreshToken(resp, token.refreshToken);
+    return { ...createUser, accessToken: token.accessToken };
   }
 
   async logIn(
@@ -83,108 +84,90 @@ export class AuthService {
       throw new UnauthorizedException('incorecty password or email');
     }
 
-    const jwt = await this.createAccessJwtToken(user.id, user.email, user.role);
-    const refresh = await this.createRefreshJwtToken(user.id);
-    const hashToken = await bcrypt.hash(refresh.refreshToken, 10);
-    await this.clearSession(user.id);
-    await this.prisma.token.create({
-      data: {
-        refreshToken: hashToken,
-        userAgent,
-        ip,
-        userId: user.id,
-      },
+    const { id, email, role } = user;
+
+    const token = await this.tokenService.createTokensAuth({
+      type: 'login',
+      id: id,
+      email: email,
+      role: role,
+      userAgent: userAgent,
+      ip: ip,
     });
-    this.cookieService.setRefreshToken(resp, refresh.refreshToken);
+    this.cookieService.setRefreshToken(resp, token.refreshToken);
     const { password, ...userWithoutPassword } = user;
-    return { ...userWithoutPassword, ...jwt };
+    return { ...userWithoutPassword, accessToken: token.accessToken };
   }
   async getRefreshToken(
-    sid: string,
     refreshToken: string,
     resp: Response,
   ): Promise<{ accessToken: string }> {
-    const session = await this.prisma.token.findMany({ where: { id: sid } });
-    if (session.length == 0) {
-      throw new UnauthorizedException('Refresh token not found');
-    }
-
-    for (let i = 0; i < session.length; i++) {
-      const match = await bcrypt.compare(refreshToken, session[i].refreshToken);
-
-      if (match) {
-        const token = await this.createRefreshJwtToken(session[i].userId);
-        await this.prisma.token.update({
-          where: { id: sid },
-          data: { refreshToken: token.refreshToken },
+    try {
+      const payloadSession: payloadOfSession = await this.jwt.verifyAsync(
+        refreshToken,
+        {
+          secret: this.config.get('REFRESH_SECRET'),
+        },
+      );
+      const session = await this.prisma.token.findUnique({
+        where: { id: payloadSession.sid },
+      });
+      const match = await bcrypt.compare(refreshToken, session.refreshToken);
+      if (!match) {
+        await this.prisma.token.deleteMany({
+          where: { userId: session.userId },
         });
-        this.cookieService.setRefreshToken(resp, token.refreshToken);
-        return { accessToken: token.refreshToken };
       }
-    }
+      const user = await this.prisma.user.findUnique({
+        where: { id: session.userId },
+      });
 
-    await this.prisma.token.deleteMany({
-      where: { userId: session[0].userId },
-    });
+      const { id, email, role } = user;
+
+      const token = await this.tokenService.createTokensAuth({
+        type: 'refresh',
+        id: id,
+        email: email,
+        role: role,
+        sid: payloadSession.sid,
+      });
+      this.cookieService.setRefreshToken(resp, token.refreshToken);
+      return { accessToken: token.accessToken };
+    } catch (e) {
+      throw new UnauthorizedException('Refresh token expired or invalid');
+    }
   }
 
-  async logOut(userId: string, token, resp: Response) {
-    if (!token) {
+  async logOut(refreshToken, resp: Response) {
+    if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
-    const userTokens = await this.prisma.token.findMany({
-      where: {
-        userId,
-      },
-    });
 
-    if (userTokens.length == 0) {
-      return { success: true };
-    }
-
-    for (let i = 0; i < userTokens.length; i++) {
-      const validToken = await bcrypt.compare(
-        token,
-        userTokens[i].refreshToken,
+    try {
+      const payloadSession: payloadOfSession = await this.jwt.verifyAsync(
+        refreshToken,
+        {
+          secret: this.config.get('REFRESH_SECRET'),
+        },
       );
-      if (validToken) {
-        await this.prisma.token.deleteMany({ where: { id: userTokens[i].id } });
+      const session = await this.prisma.token.findUnique({
+        where: { id: payloadSession.sid },
+      });
+      const match = await bcrypt.compare(refreshToken, session.refreshToken);
+      if (!match) {
+        await this.prisma.token.deleteMany({
+          where: { userId: session.userId },
+        });
         this.cookieService.cleanRefreshToken(resp);
         return { success: true };
       }
-    }
-    await this.prisma.token.deleteMany({ where: { userId } });
-    this.cookieService.cleanRefreshToken(resp);
-    return { success: true };
-  }
-
-  private async createAccessJwtToken(
-    id: string,
-    email: string,
-    role: string,
-  ): Promise<{ accessToken: string }> {
-    const payload = { userId: id, email, role };
-    return { accessToken: await this.jwt.signAsync(payload) };
-  }
-
-  private async createRefreshJwtToken(
-    userId: string,
-  ): Promise<{ refreshToken: string }> {
-    const v4 = uuidv4();
-    const payload = { sid: v4, userId: userId };
-    return { refreshToken: await this.jwt.signAsync(payload) };
-  }
-
-  private async clearSession(userId: string, limit = 5) {
-    const oldSession = await this.prisma.token.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      skip: limit - 1,
-      select: { id: true },
-    });
-    if (oldSession.length > 0) {
-      const arrSession = oldSession.map((el) => el.id);
-      await this.prisma.token.deleteMany({ where: { id: { in: arrSession } } });
+      await this.prisma.token.deleteMany({
+        where: { id: session.id },
+      });
+      this.cookieService.cleanRefreshToken(resp);
+      return { success: true };
+    } catch (e) {
+      throw new UnauthorizedException('Refresh token expired or invalid');
     }
   }
 }

@@ -15,7 +15,6 @@ import { LogInDTO, RegisterDTO } from './dto';
 import { Request, Response } from 'express';
 import { AuthGuard } from 'src/common/guards';
 import { CookieFromReq, DataFromUser } from 'src/common/decorators';
-import { RefreshTokenJwt } from './guards';
 
 @Controller('auth')
 export class AuthController {
@@ -42,19 +41,20 @@ export class AuthController {
   }
 
   @Patch('refreshToken')
-  @UseGuards(RefreshTokenJwt)
   refreshToken(
-    @DataFromUser('sid') sid: string,
-    @Res({ passthrough: true }) resp: Response,
-  ) {}
+    @CookieFromReq('refreshToken') token: string,
+    @Res({ passthrough: true })
+    resp: Response,
+  ) {
+    return this.authService.getRefreshToken(token, resp);
+  }
 
   @Delete('logOut')
   @UseGuards(AuthGuard)
   logOut(
-    @DataFromUser('userId') userId: string,
     @CookieFromReq('refreshToken') token: string,
     @Res({ passthrough: true }) resp: Response,
   ) {
-    return this.authService.logOut(userId, token, resp);
+    return this.authService.logOut(token, resp);
   }
 }
