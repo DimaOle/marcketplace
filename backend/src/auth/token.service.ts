@@ -1,15 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import {
-  accessToken,
-  CreateTokensOptions,
-  refreshToken,
-  refreshTokenWhithSid,
-} from './interfaces';
+import { accessToken, refreshToken, refreshTokenWhithSid } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { HashService } from './hash.service';
+import { TokenPrismaService } from './token-repository.service';
+import { CreateTokensDto } from './dto';
 
 @Injectable()
 export class TokenService {
@@ -17,45 +14,70 @@ export class TokenService {
     private jwt: JwtService,
     private config: ConfigService,
     private prisma: PrismaService,
+    private hashService: HashService,
+    private tokenPrismaService: TokenPrismaService,
   ) {}
 
   async createTokensAuth(
-    option: CreateTokensOptions,
+    option: CreateTokensDto,
   ): Promise<accessToken & refreshToken> {
-    const { type, id, email, role, userAgent, ip, sid } = option;
-    if (type === 'refresh' && !sid) {
-      throw new BadRequestException('sid is required');
-    }
+    const { id, email, role } = option;
+    const access = await this.generatedAccess(id, email, role);
+    const { refreshToken, sid } = await this.generatedRefresh(id);
+    const hashedRefresh = await this.hashService.hashData(refreshToken, 10);
 
-    if (type !== 'refresh' && (!ip || !userAgent)) {
-      throw new BadRequestException('ip or userAgent is required');
-    }
+    await this.saveSessionStrategy(option, sid, hashedRefresh);
 
-    const tokenAccess = await this.createAccessJwtToken(id, email, role);
-    const tokenRefresh = await this.createRefreshJwtToken(id);
-    const hashToken = await bcrypt.hash(tokenRefresh.refreshToken, 10);
-    if (type === 'login') await this.clearSession(id);
-    if (type !== 'refresh') {
-      await this.prisma.token.create({
-        data: {
-          id: tokenRefresh.sid,
-          refreshToken: hashToken,
-          userAgent,
-          ip,
-          userId: id,
-        },
-      });
-    } else {
-      await this.prisma.token.update({
-        where: { id: sid },
-        data: { refreshToken: hashToken, id: tokenRefresh.sid },
-      });
-    }
-
-    return { ...tokenAccess, ...tokenRefresh };
+    return { ...access, refreshToken: refreshToken };
   }
 
-  async createAccessJwtToken(
+  private async saveSessionStrategy(
+    dto: CreateTokensDto,
+    newSid: string,
+    hash: string,
+  ) {
+    const strategies = {
+      login: () => this.handleNewSession(dto, newSid, hash),
+      register: () => this.handleNewSession(dto, newSid, hash),
+      refresh: () => this.handleRefreshSession(dto, newSid, hash),
+    };
+    const strategy = strategies[dto.type];
+    return strategy();
+  }
+
+  private async handleNewSession(
+    dto: CreateTokensDto,
+    sid: string,
+    hash: string,
+  ) {
+    if (!dto.ip || !dto.userAgent) {
+      throw new BadRequestException('Metadata required');
+    }
+    const data = {
+      id: sid,
+      refreshToken: hash,
+      userAgent: dto.userAgent,
+      ip: dto.ip,
+      userId: dto.id,
+    };
+    await this.tokenPrismaService.savedRefreshToken(data);
+    await this.clearSession(dto.id);
+  }
+
+  private async handleRefreshSession(
+    dto: CreateTokensDto,
+    newSid: string,
+    hash: string,
+  ) {
+    const data = {
+      sid: dto.sid,
+      newSid: newSid,
+      refreshToken: hash,
+    };
+    await this.tokenPrismaService.updateRefreshTokenService(data);
+  }
+
+  private async generatedAccess(
     id: string,
     email: string,
     role: string,
@@ -64,7 +86,9 @@ export class TokenService {
     return { accessToken: await this.jwt.signAsync(payload) };
   }
 
-  async createRefreshJwtToken(userId: string): Promise<refreshTokenWhithSid> {
+  private async generatedRefresh(
+    userId: string,
+  ): Promise<refreshTokenWhithSid> {
     const v4 = uuidv4();
     const payload = { sid: v4, userId: userId };
     const token = await this.jwt.signAsync(payload, {
@@ -79,15 +103,17 @@ export class TokenService {
   }
 
   private async clearSession(userId: string, limit = 5) {
-    const oldSession = await this.prisma.token.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      skip: limit - 1,
-      select: { id: true },
-    });
+    const oldSession = await this.tokenPrismaService.findManyByParams(
+      {
+        userId: userId,
+      },
+      { id: true },
+    );
     if (oldSession.length > 0) {
-      const arrSession = oldSession.map((el) => el.id);
-      await this.prisma.token.deleteMany({ where: { id: { in: arrSession } } });
+      await this.tokenPrismaService.deleteManyIn({
+        param: 'id',
+        value: oldSession.map((el) => el.id),
+      });
     }
   }
 }

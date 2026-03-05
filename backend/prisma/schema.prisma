@@ -45,13 +45,13 @@ model Product {
 }
 
 model User {
-  id String  @id @default(uuid())
+  id        String  @id @default(uuid())
   firstName String
-  lastName String
-  email String @unique()
-  password String
-  role Role @default(USER)
-  token Token[]
+  lastName  String
+  email     String  @unique()
+  password  String
+  role      Role    @default(USER)
+  token     Token[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt() @map("updated_at")
@@ -60,18 +60,19 @@ model User {
 }
 
 model Token {
-  id          String   @id @default(uuid()) @unique()
-  refreshToken  String @map("refresh_token")
-  userAgent   String   @map("user_agent")
-  ip          String
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String @map("user_id")
+  id           String @id @unique() @default(uuid())
+  refreshToken String @map("refresh_token")
+  userAgent    String @map("user_agent")
+  ip           String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String @map("user_id")
 
   createdAt DateTime @default(now()) @map("created_at")
+
   @@map("tokens")
 }
 
 enum Role {
   ADMIN
-  USER 
+  USER
 }

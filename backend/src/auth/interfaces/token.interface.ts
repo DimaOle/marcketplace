@@ -10,16 +10,27 @@ export interface refreshTokenWhithSid extends refreshToken {
   sid: string;
 }
 
-export type typeAuthTokensCreate = 'login' | 'register' | 'refresh';
-
-export interface CreateTokensOptions {
-  type: typeAuthTokensCreate;
+export interface ILoginOptions {
   id: string;
   email: string;
   role: string;
   userAgent?: string;
   ip?: string;
   sid?: string;
+}
+
+export interface ISavedRefreshTokenOption {
+  id: string;
+  refreshToken: string;
+  userAgent: string;
+  ip: string;
+  userId: string;
+}
+
+export interface IUpdatedRefreshTokenOption {
+  sid: string;
+  refreshToken: string;
+  newSid: string;
 }
 
 export interface payloadOfSession {
