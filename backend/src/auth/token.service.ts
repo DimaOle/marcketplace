@@ -3,19 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { accessToken, refreshToken, refreshTokenWhithSid } from './interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { HashService } from './hash.service';
 import { TokenPrismaService } from './token-repository.service';
 import { CreateTokensDto } from './dto';
+import { JwtAuthService } from './jwt-auth.service';
 
 @Injectable()
 export class TokenService {
   constructor(
-    private jwt: JwtService,
     private config: ConfigService,
-    private prisma: PrismaService,
     private hashService: HashService,
     private tokenPrismaService: TokenPrismaService,
+    private jwtAuthService: JwtAuthService,
   ) {}
 
   async createTokensAuth(
@@ -83,7 +82,9 @@ export class TokenService {
     role: string,
   ): Promise<accessToken> {
     const payload = { userId: id, email, role };
-    return { accessToken: await this.jwt.signAsync(payload) };
+    return {
+      accessToken: await this.jwtAuthService.signAsync(payload),
+    };
   }
 
   private async generatedRefresh(
@@ -91,7 +92,7 @@ export class TokenService {
   ): Promise<refreshTokenWhithSid> {
     const v4 = uuidv4();
     const payload = { sid: v4, userId: userId };
-    const token = await this.jwt.signAsync(payload, {
+    const token = await this.jwtAuthService.signAsync(payload, {
       secret: this.config.get('REFRESH_SECRET'),
       expiresIn: this.config.get('REFRESH_EXP'),
     });
