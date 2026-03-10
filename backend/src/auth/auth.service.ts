@@ -1,30 +1,27 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { LogInDTO, RegisterDTO } from './dto';
-import * as bcrypt from 'bcrypt';
 import { UserResponseWithAccesToken } from 'src/common/prisma-select';
-import { CookieService } from './cookie.service';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
-import { TokenService } from './token.service';
 import { payloadOfSession } from './interfaces';
 import { UserService } from 'src/user/user.service';
-import { HashService } from './hash.service';
-import { TokenPrismaService } from './token-repository.service';
-import { JwtAuthService } from './jwt-auth.service';
+import { TokenStorage } from './base';
+import {
+  CookieService,
+  HashService,
+  JwtAuthService,
+  TokenService,
+} from './services';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private jwt: JwtService,
     private cookieService: CookieService,
     private config: ConfigService,
     private tokenService: TokenService,
     private userService: UserService,
     private hashService: HashService,
-    private tokenPrismaService: TokenPrismaService,
+    private storage: TokenStorage,
     private jwtAuthService: JwtAuthService,
   ) {}
 
@@ -91,13 +88,13 @@ export class AuthService {
       this.config.get('REFRESH_SECRET'),
     );
     const { sid, userId } = payloadSession;
-    const session = await this.tokenPrismaService.findUniqueByParam('id', sid);
+    const session = await this.storage.findUnique(sid);
     const match = await this.hashService.compareData(
       refreshToken,
       session.refreshToken,
     );
     if (!match) {
-      await this.tokenPrismaService.deleteMany('userId', session.userId);
+      await this.storage.deleteByUserId(session.userId);
     }
     const user = await this.userService.getUserById(session.userId);
     const { id, email, role } = user;
@@ -123,17 +120,17 @@ export class AuthService {
         this.config.get('REFRESH_SECRET'),
       );
     const { sid, userId } = payloadSession;
-    const session = await this.tokenPrismaService.findUniqueByParam('id', sid);
+    const session = await this.storage.findUnique(sid);
     const match = await this.hashService.compareData(
       refreshToken,
       session.refreshToken,
     );
     if (!match) {
-      await this.tokenPrismaService.deleteMany('userId', session.userId);
+      await this.storage.deleteByUserId(session.userId);
       this.cookieService.cleanRefreshToken(resp);
       return { success: true };
     }
-    await this.tokenPrismaService.deleteMany('id', session.id);
+    await this.storage.deleteAllById([session.id]);
     this.cookieService.cleanRefreshToken(resp);
     return { success: true };
   }

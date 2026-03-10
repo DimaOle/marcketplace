@@ -4,7 +4,7 @@ import {
   IJwtAccessPayload,
   IJwtRefreshPayload,
   payloadOfSession,
-} from './interfaces';
+} from '../interfaces';
 
 @Injectable()
 export class JwtAuthService {

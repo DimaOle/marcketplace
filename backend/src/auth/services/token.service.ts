@@ -1,19 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { accessToken, refreshToken, refreshTokenWhithSid } from './interfaces';
+import { accessToken, refreshToken, refreshTokenWhithSid } from '../interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import { HashService } from './hash.service';
-import { TokenPrismaService } from './token-repository.service';
-import { CreateTokensDto } from './dto';
-import { JwtAuthService } from './jwt-auth.service';
+import { CreateTokensDto } from '../dto';
+import { TokenStorage } from '../base';
+import { HashService, JwtAuthService } from '../services';
 
 @Injectable()
 export class TokenService {
   constructor(
     private config: ConfigService,
     private hashService: HashService,
-    private tokenPrismaService: TokenPrismaService,
+    private readonly storage: TokenStorage,
     private jwtAuthService: JwtAuthService,
   ) {}
 
@@ -59,8 +57,8 @@ export class TokenService {
       ip: dto.ip,
       userId: dto.id,
     };
-    await this.tokenPrismaService.savedRefreshToken(data);
-    await this.clearSession(dto.id);
+    await this.storage.save(data);
+    await this.storage.deleteOldSessions(dto.id);
   }
 
   private async handleRefreshSession(
@@ -73,7 +71,7 @@ export class TokenService {
       newSid: newSid,
       refreshToken: hash,
     };
-    await this.tokenPrismaService.updateRefreshTokenService(data);
+    await this.storage.update(data);
   }
 
   private async generatedAccess(
@@ -101,20 +99,5 @@ export class TokenService {
       refreshToken: token,
       sid: v4,
     };
-  }
-
-  private async clearSession(userId: string, limit = 5) {
-    const oldSession = await this.tokenPrismaService.findManyByParams(
-      {
-        userId: userId,
-      },
-      { id: true },
-    );
-    if (oldSession.length > 0) {
-      await this.tokenPrismaService.deleteManyIn({
-        param: 'id',
-        value: oldSession.map((el) => el.id),
-      });
-    }
   }
 }

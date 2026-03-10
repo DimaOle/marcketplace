@@ -3,12 +3,15 @@ import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { createJwtOptions } from './config';
 import { AuthController } from './auth.controller';
-import { CookieService } from './cookie.service';
-import { TokenService } from './token.service';
 import { UserModule } from 'src/user/user.module';
-import { TokenPrismaService } from './token-repository.service';
-import { HashService } from './hash.service';
-import { JwtAuthService } from './jwt-auth.service';
+import { TokenStorage } from './base';
+import {
+  CookieService,
+  HashService,
+  JwtAuthService,
+  TokenPrismaService,
+  TokenService,
+} from './services';
 
 @Module({
   controllers: [AuthController],
@@ -16,9 +19,12 @@ import { JwtAuthService } from './jwt-auth.service';
     AuthService,
     CookieService,
     TokenService,
-    TokenPrismaService,
     HashService,
     JwtAuthService,
+    {
+      provide: TokenStorage,
+      useClass: TokenPrismaService,
+    },
   ],
   imports: [UserModule, JwtModule.registerAsync(createJwtOptions())],
   exports: [JwtModule],
