@@ -1,15 +1,23 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
 import { PAGINATION_DEFAULTS } from 'src/common/constatnts';
+import { ProductSortFields } from '../enums/enums';
 
 export class SearchProductDTO {
+  @IsOptional()
+  @IsUUID()
+  @IsNotEmpty()
+  categoryId?: string;
+
   @IsOptional()
   @IsNotEmpty()
   search?: string;
@@ -46,4 +54,8 @@ export class SearchProductDTO {
   @IsNotEmpty()
   @IsString()
   categorySlug?: string;
+
+  @IsOptional()
+  @IsEnum(ProductSortFields)
+  sort?: string;
 }
