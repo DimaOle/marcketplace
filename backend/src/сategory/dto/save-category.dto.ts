@@ -1,4 +1,11 @@
-import { IsLowercase, IsNotEmpty, IsString, Length } from 'class-validator';
+import {
+  IsLowercase,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+} from 'class-validator';
 
 export class SaveCategoryDTO {
   @IsString()
@@ -6,4 +13,9 @@ export class SaveCategoryDTO {
   @IsNotEmpty()
   @IsLowercase()
   name: string;
+
+  @IsUUID()
+  @IsOptional()
+  @IsNotEmpty()
+  parentId?: string;
 }
