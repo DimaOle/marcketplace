@@ -39,7 +39,11 @@ export class ProductService {
       take: dto.limit,
       skip: (dto.page - 1) * dto.limit,
       where: addConditions.length > 0 ? { AND: addConditions } : {},
-      orderBy: { createdAt: 'desc' },
+      orderBy: {
+        ...(dto.sort === 'price_asc' ? { price: 'asc' } : {}),
+        ...(dto.sort === 'price_desc' ? { price: 'desc' } : {}),
+        ...(dto.sort === 'newest' ? { createdAt: 'desc' } : {}),
+      },
       select: ProductSelect,
     });
   }
