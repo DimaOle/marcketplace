@@ -5,6 +5,8 @@ export const CategorySelect = {
   name: true,
   slug: true,
   parentId: true,
+  path: true,
+  rootId: true,
 } as const;
 
 export type CategoryResponse = Pick<Category, keyof typeof CategorySelect>;
