@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SaveCategoryDTO, UpdateCategoryDTO } from './dto';
 import slugify from 'slugify';
@@ -84,36 +88,72 @@ export class CategoryService {
 
   async updateCategory(dto: UpdateCategoryDTO): Promise<Category> {
     const { id, parentId, name } = dto;
-    const category = await this.prisma.category.findUnique({ where: { id } });
 
-    if (!category) {
-      throw new NotFoundException(`Category with ${id} not found`);
-    }
-    const data: Prisma.CategoryUncheckedUpdateInput = {};
-
-    if (parentId) {
-      const category = await this.prisma.category.findUnique({
-        where: { id: parentId },
-      });
-
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.category.findUnique({ where: { id } });
       if (!category) {
-        throw new NotFoundException(` ${parentId} not found`);
+        throw new NotFoundException(`Category with ${id} not found`);
       }
-      data.parentId = parentId;
-    }
-    if (name) {
-      data.name = name;
-      data.slug = slugify(name, { lower: true });
-    }
 
-    return this.prisma.category.update({ where: { id }, data });
+      const data: Prisma.CategoryUncheckedUpdateInput = {};
+      const oldPath = category.path;
+      let newPath = category.path;
+      let newRootId = category.rootId;
+      if (name) {
+        data.name = name;
+        data.slug = slugify(name, { lower: true });
+      }
+
+      if (parentId !== undefined && parentId !== category.parentId) {
+        if (parentId === null) {
+          newPath = category.path;
+          newRootId = category.rootId;
+        } else {
+          const newParent = await tx.category.findUnique({
+            where: { id: parentId },
+          });
+
+          if (!newParent) {
+            throw new NotFoundException(`Parent ${parentId} not found`);
+          }
+
+          newPath = `${newParent.path}.${category.id}`;
+          newRootId = newParent.rootId;
+        }
+
+        data.parentId = parentId;
+        data.path = newPath;
+        data.rootId = newRootId;
+
+        const children = await tx.category.findMany({
+          where: { path: { startsWith: `${oldPath}.` } },
+        });
+
+        for (const child of children) {
+          const updateChildPath = child.path.replace(oldPath, newPath);
+          await tx.category.update({
+            where: { id: child.id },
+            data: { path: updateChildPath, rootId: newRootId },
+          });
+        }
+
+        return tx.category.update({ where: { id }, data });
+      }
+    });
   }
 
   async deleteCategory(id: string) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) {
-      throw new NotFoundException(`category by ${id} not found`);
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { _count: { select: { children: true, products: true } } },
+    });
+    if (!category) throw new NotFoundException('Category not found');
+    if (category._count.children > 0 || category._count.products > 0) {
+      throw new BadRequestException(
+        'cannot delete a category that contains products or subcategories.',
+      );
     }
+
     return this.prisma.category.delete({ where: { id } });
   }
 }

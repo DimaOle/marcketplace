@@ -30,12 +30,14 @@ export class CategoryController {
     return this.categoryService.getCategory();
   }
 
+  @Roles(['ADMIN'])
   @UseGuards(AuthGuard, RoleGuard)
   @Patch()
   update(@Body() dto: UpdateCategoryDTO) {
     return this.categoryService.updateCategory(dto);
   }
 
+  @Roles(['ADMIN'])
   @UseGuards(AuthGuard, RoleGuard)
   @Delete(':id')
   delete(@Param('id', new ParseUUIDPipe()) id: string) {

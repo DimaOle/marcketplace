@@ -8,7 +8,6 @@ export class UpdateCategoryDTO {
 
   @IsUUID()
   @IsOptional()
-  @IsNotEmpty()
   parentId?: string;
 
   @IsUUID()
