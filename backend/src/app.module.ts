@@ -5,6 +5,7 @@ import { CategoryModule } from './сategory/category.module';
 import { ProductModule } from './product/product.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { CartModule } from './cart/cart.module';
 @Module({
   imports: [
     CategoryModule,
@@ -12,6 +13,7 @@ import { UserModule } from './user/user.module';
     PrismaModule,
     UserModule,
     AuthModule,
+    CartModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
