@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddCartDTO } from './dto';
-import { Prisma } from 'src/generated/prisma/client';
+import { CartItem, Prisma } from 'src/generated/prisma/client';
 import { CartResponse } from './types';
 
 @Injectable()
@@ -57,5 +57,26 @@ export class CartService {
     }
 
     return this.getCart(userId);
+  }
+
+  async updateQuantity(itemId: string, quantity: number): Promise<CartItem> {
+    const item = await this.findItem(itemId);
+
+    if (!item) throw new NotFoundException(`by ${itemId} item dont found`);
+    return this.prisma.cartItem.update({
+      where: { id: itemId },
+      data: { quantity },
+    });
+  }
+
+  async deleteItem(itemId: string): Promise<CartItem> {
+    const item = await this.findItem(itemId);
+
+    if (!item) throw new NotFoundException(`by ${itemId} item dont found`);
+    return this.prisma.cartItem.delete({ where: { id: itemId } });
+  }
+
+  private async findItem(itemId: string): Promise<CartItem> {
+    return this.prisma.cartItem.findFirst({ where: { id: itemId } });
   }
 }
