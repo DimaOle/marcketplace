@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateProductDTO, SearchProductDTO } from './dto';
 import { ProductResponse, ProductSelect } from './select-prisma';
-import { Prisma } from 'src/generated/prisma/client';
+import { Prisma, Product } from 'src/generated/prisma/client';
 
 @Injectable()
 export class ProductService {
@@ -46,5 +46,9 @@ export class ProductService {
       },
       select: ProductSelect,
     });
+  }
+
+  async getProductById(productId: string): Promise<Product> {
+    return this.prisma.product.findFirst({ where: { id: productId } });
   }
 }

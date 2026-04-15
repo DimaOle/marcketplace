@@ -6,6 +6,7 @@ import { ProductModule } from './product/product.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { CartModule } from './cart/cart.module';
+import { FavoriteModule } from './favorite/favorite.module';
 @Module({
   imports: [
     CategoryModule,
@@ -14,6 +15,7 @@ import { CartModule } from './cart/cart.module';
     UserModule,
     AuthModule,
     CartModule,
+    FavoriteModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
