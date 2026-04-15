@@ -1,19 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddCartDTO } from './dto';
 import { Prisma } from 'src/generated/prisma/client';
+import { CartResponse } from './types';
 
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getCart(userId: string) {
+  async getCart(userId: string): Promise<CartResponse> {
     const cart = await this.prisma.cart.findUnique({
       where: { userId },
       include: { items: { include: { product: true } } },
     });
 
-    if (!cart) return { totalPrice: 0 };
+    if (!cart) throw new NotFoundException('Cart not found');
 
     const totalPrice = cart.items.reduce((acc, item) => {
       const allPrice = item.product.price.mul(item.quantity);
@@ -23,7 +24,7 @@ export class CartService {
     return { ...cart, totalPrice };
   }
 
-  async addToCart(userId: string, dto: AddCartDTO) {
+  async addToCart(userId: string, dto: AddCartDTO): Promise<CartResponse> {
     const { productId, quantity } = dto;
 
     let cart = await this.prisma.cart.findUnique({ where: { userId } });
@@ -37,23 +38,24 @@ export class CartService {
     });
 
     if (existingItem) {
-      return this.prisma.cartItem.update({
+      await this.prisma.cartItem.update({
         where: { id: existingItem.id },
         data: { quantity: existingItem.quantity + quantity },
       });
+    } else {
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+      });
+      await this.prisma.cartItem.create({
+        data: {
+          cartId: cart.id,
+          productId: productId,
+          quantity: quantity,
+          price: product.price,
+        },
+      });
     }
 
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    return this.prisma.cartItem.create({
-      data: {
-        cartId: cart.id,
-        productId: productId,
-        quantity: quantity,
-        price: product.price,
-      },
-    });
+    return this.getCart(userId);
   }
 }
